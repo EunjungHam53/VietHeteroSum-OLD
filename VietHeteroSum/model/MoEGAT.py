@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-from CiteHeteroSum.CiteHeteroSum_model.Graph_Encoder import GAT, MLP, Gate
+from model.Graph_Encoder import GAT, MLP, Gate
 
 
 # MatrixRouter với top_k cố định

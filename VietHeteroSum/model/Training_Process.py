@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from CiteHeteroSum_model.Loss import pairwise_distances
+from model.Loss import pairwise_distances
 from utils import *
 from torch.amp import autocast
 from torch.amp import GradScaler

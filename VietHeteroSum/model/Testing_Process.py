@@ -3,7 +3,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import torch
-from CiteHeteroSum_model.Training_Process import get_summary
+from model.Training_Process import get_summary
 from torch.amp import autocast
 from torch.amp import GradScaler
 
