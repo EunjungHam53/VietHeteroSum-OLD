@@ -131,6 +131,22 @@ class GAT(nn.Module):
         x = self.dropout(x)
         x = self.output(x, adj_mat).masked_fill(adj_x == 0, float(0))
         return x.unsqueeze(0)
+    
+class NodeScorer(nn.Module):
+    def __init__(self, in_features):
+        super().__init__()
+        self.linear = nn.Linear(in_features, 1)
+    def forward(self, x):
+        return torch.tanh(self.linear(x))
+
+class Gate(nn.Module):
+    def __init__(self, in_features):
+        super().__init__()
+        self.scorer = NodeScorer(in_features)
+    def forward(self, x):
+        scores = self.scorer(x).squeeze(-1)
+        x = x * scores.view(-1,1)
+        return x
 
 class Contrast_Encoder(nn.Module):
     def __init__(self, graph_encoder, hidden_dim, bert_hidden=768, in_dim=768, dropout_p=0.3):

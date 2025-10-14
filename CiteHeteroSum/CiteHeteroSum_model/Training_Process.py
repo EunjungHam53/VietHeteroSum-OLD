@@ -22,7 +22,7 @@ def concat_with_overlap(str1, str2):
     merged_tokens = tokens1 + tokens2[overlap_length:]
     return ' '.join(merged_tokens)
 
-def train_e2e_moe(train_dataloader, model, optimizer, args=args):
+def train_e2e_moe(train_dataloader, model, optimizer, loss_method, max_word_num, kappa):
     model[0].train()
     model[1].train()
     c_loss, s_loss, loss, batch_num = 0, 0, 0, 0
@@ -31,7 +31,7 @@ def train_e2e_moe(train_dataloader, model, optimizer, args=args):
     moe_loss = 0
 
     for i, data in enumerate(train_dataloader):
-        batch_loss, bc_loss, bs_loss, b_moe_loss, scores = train_e2e_batch_moe(data, model, optimizer)
+        batch_loss, bc_loss, bs_loss, b_moe_loss, scores = train_e2e_batch_moe(data, model, optimizer, loss_method)
         loss += batch_loss
         c_loss += bc_loss
         s_loss += bs_loss
@@ -39,8 +39,8 @@ def train_e2e_moe(train_dataloader, model, optimizer, args=args):
         batch_num += 1
 
         abs_text = data.golden
-        summary_text = get_summary(scores[0], data.sents, args["max_word_num"], kappa=args["kappa"])
-        rouge2_score.append(getRouge2(data.golden, summary_text, 'f'))
+        summary_text = get_summary(scores[0], data.sents, max_word_num, kappa)
+        rouge2_score.append(getRouge2(abs_text, summary_text, 'f'))
 
         if i % print_epo == 0:
             print("Batch {}, Loss: {}".format(i, loss / batch_num))
@@ -55,7 +55,7 @@ def train_e2e_moe(train_dataloader, model, optimizer, args=args):
 
     return loss / batch_num, np.mean(rouge2_score)
 
-def train_e2e_batch_moe(data_batch, model, optimizer):
+def train_e2e_batch_moe(data_batch, model, optimizer, loss_method):
     c_model = model[0]
     s_model = model[1]
 
@@ -76,7 +76,6 @@ def train_e2e_batch_moe(data_batch, model, optimizer):
 
     s_loss = F.binary_cross_entropy_with_logits(x.squeeze(-1), labels.cuda(), pos_weight=torch.tensor(10).cuda())
     pg = pg.squeeze(0)
-    infonce = InfoNCE(tau=0.2)
 
     # Create positive mask
     pos_mask = torch.zeros(1, feature.shape[1])
@@ -87,23 +86,17 @@ def train_e2e_batch_moe(data_batch, model, optimizer):
     neg_mask = 1 - pos_mask
     # c_loss = infonce(goldenVec.cuda(), pg, mask.cuda(), neg_mask.cuda())
 
-    # Use triplet loss instead of InfoNCE
     if torch.any(pos_mask):
         pos_distances, neg_distances = pairwise_distances(goldenVec.cuda(), pg, pos_mask.cuda(), neg_mask.cuda())
         c_loss = loss_method(pos_distances, neg_distances)
     else:
         c_loss = torch.tensor(0.0, device='cuda')
 
-    # Lấy MoE loss từ cả 2 model c và e (s)
-    # Model C
+
     moe_loss_c = c_model.graph_encoder.get_contribution_loss() if hasattr(c_model.graph_encoder, 'get_contribution_loss') else torch.tensor(0.0, device=device)
     if not isinstance(moe_loss_c, torch.Tensor):
         moe_loss_c = torch.tensor(moe_loss_c, device=device)
     
-    # Model E (S)
-    # moe_loss_e = s_model.graph_encoder.get_load_balance_loss() if hasattr(s_model.graph_encoder, 'get_load_balance_loss') else torch.tensor(0.0, device=device)
-    # if not isinstance(moe_loss_e, torch.Tensor):
-    #     moe_loss_e = torch.tensor(moe_loss_e, device=device)
     
     moe_loss = moe_loss_c
 
@@ -113,7 +106,7 @@ def train_e2e_batch_moe(data_batch, model, optimizer):
 
     return loss.data, c_loss.data, s_loss.data, moe_loss.data, torch.sigmoid(x.squeeze(-1))
 
-def val_e2e_moe(val_dataloader, model, args=args, mode='val', sent_num=0):
+def val_e2e_moe(val_dataloader, model, loss_method, max_word_num, kappa, sent_num=0):
     model[0].eval()
     model[1].eval()
     loss, c_loss, s_loss = 0, 0, 0
@@ -124,18 +117,18 @@ def val_e2e_moe(val_dataloader, model, args=args, mode='val', sent_num=0):
     all_summaries = []
     all_gt = []
     for i, data in enumerate(val_dataloader):
-        cur_loss, c_loss_b, s_loss_b, moe_loss_b, scores = val_e2e_batch_moe(data, model)
+        cur_loss, c_loss_b, s_loss_b, moe_loss_b, scores = val_e2e_batch_moe(data, model, loss_method)
         loss += cur_loss
         c_loss += c_loss_b
         s_loss += s_loss_b
         moe_loss += moe_loss_b
 
         abs_text = data.golden
-        summary_text = get_summary(scores[0], data.sents, args["max_word_num"], kappa=args["kappa"])
+        summary_text = get_summary(scores[0], data.sents, max_word_num, kappa)
 
         all_gt.append(data.golden)
         all_summaries.append(summary_text)
-        rouge2_score.append(getRouge2(data.golden, summary_text, 'f'))
+        rouge2_score.append(getRouge2(abs_text, summary_text, 'f'))
         batch_num += 1
 
     rouge2_score_mean = np.mean(rouge2_score)
@@ -143,12 +136,9 @@ def val_e2e_moe(val_dataloader, model, args=args, mode='val', sent_num=0):
     c_loss /= batch_num
     s_loss /= batch_num
     moe_loss /= batch_num
-
-    if mode != 'val':
-        return rouge2_score_mean, all_summaries, all_gt, rouge2_score
     return rouge2_score_mean, loss, c_loss, s_loss, moe_loss
 
-def val_e2e_batch_moe(data_batch, model):
+def val_e2e_batch_moe(data_batch, model, loss_method):
     c_model = model[0]
     s_model = model[1]
     feature = data_batch.feature.unsqueeze(0)
@@ -167,7 +157,6 @@ def val_e2e_batch_moe(data_batch, model):
         x = s_model(pg.cuda(), adj.cuda(), docnum, secnum)
 
         pg = pg.squeeze(0)
-        infonce = InfoNCE(tau=0.2)
 
         # Create positive mask
         pos_mask = torch.zeros(1, feature.shape[1])
@@ -187,16 +176,9 @@ def val_e2e_batch_moe(data_batch, model):
         
         s_loss = F.binary_cross_entropy_with_logits(x.squeeze(-1), labels.cuda(), pos_weight=torch.tensor(10).cuda())
 
-        # Lấy MoE loss từ cả 2 model c và e (s)
-        # Model C
         moe_loss_c = c_model.graph_encoder.get_contribution_loss() if hasattr(c_model.graph_encoder, 'get_contribution_loss') else torch.tensor(0.0, device=device)
         if not isinstance(moe_loss_c, torch.Tensor):
             moe_loss_c = torch.tensor(moe_loss_c, device=device)
-        
-        # Model E (S)
-        # moe_loss_e = s_model.graph_encoder.get_load_balance_loss() if hasattr(s_model.graph_encoder, 'get_load_balance_loss') else torch.tensor(0.0, device=device)
-        # if not isinstance(moe_loss_e, torch.Tensor):
-        #     moe_loss_e = torch.tensor(moe_loss_e, device=device)
         
         moe_loss = moe_loss_c
 
@@ -205,7 +187,7 @@ def val_e2e_batch_moe(data_batch, model):
     
     return loss.data, c_loss.data, s_loss.data, moe_loss.data, scores
 
-def get_summary(scores, sents, max_word_num=160, sent_num=0, kappa=0.45):
+def get_summary(scores, sents, max_word_num, kappa, sent_num=0):
     ranked_score_idxs = torch.argsort(scores, dim=0, descending=True)
     wordCnt = 0
     summSentIDList = []

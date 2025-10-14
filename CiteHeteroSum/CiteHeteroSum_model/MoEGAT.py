@@ -3,6 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
+from CiteHeteroSum.CiteHeteroSum_model.Graph_Encoder import GAT, MLP, Gate
+
+
 # MatrixRouter với top_k cố định
 class FixedMatrixRouter(nn.Module):
     def __init__(self, input_dim, num_experts, top_k=2):
@@ -112,7 +115,7 @@ class MainGAT(nn.Module):
 # MoE Layer với Main GAT + Deputy Experts
 class MoEGraphLayer(nn.Module):
     def __init__(self, in_dim, hid_dim, dropout_p=0.3, n_heads=6, num_experts=3, 
-                 top_k=2, use_dynamic_topk=False):
+                 top_k=2, use_dynamic_topk=False, target_main_contribution=0.8, contribution_loss_coef=0.01):
         super().__init__()
         self.num_experts = num_experts
         self.top_k = top_k
@@ -139,8 +142,8 @@ class MoEGraphLayer(nn.Module):
         )
         
         # Contribution loss coefficient
-        self.contribution_loss_coef = 0.01
-        self.target_main_contribution = args['target_main_contribution']  # Target: main đóng góp 50%
+        self.contribution_loss_coef = contribution_loss_coef
+        self.target_main_contribution = target_main_contribution  # Target: main đóng góp 50%
         
     def forward(self, feature, adj, doc_num, sect_num):
         batch_size, seq_len, dim = feature.shape
