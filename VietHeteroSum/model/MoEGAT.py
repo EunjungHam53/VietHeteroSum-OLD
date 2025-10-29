@@ -204,7 +204,7 @@ class MoEGraphLayer(nn.Module):
 class StepWiseGraphConvLayerMoE(nn.Module):
     def __init__(self, in_dim, out_dim, hid_dim, dropout_p=0.3, act=nn.LeakyReLU(), 
                  nheads=6, iter=1, have_gate=False, num_experts=3, top_k=2, 
-                 use_dynamic_topk=False):
+                 use_dynamic_topk=False, target_main_contribution=0.8):
         super().__init__()
         self.act = act
         self.dropout = nn.Dropout(dropout_p)
@@ -214,7 +214,7 @@ class StepWiseGraphConvLayerMoE(nn.Module):
         # MoE layers với Main GAT + Deputy Experts
         self.moe_layers = nn.ModuleList([
             MoEGraphLayer(in_dim, hid_dim, dropout_p, nheads, num_experts, 
-                         top_k, use_dynamic_topk) 
+                         top_k, use_dynamic_topk, target_main_contribution) 
             for _ in range(iter)
         ])
         
