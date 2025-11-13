@@ -186,7 +186,7 @@ class MoEGraphLayer(nn.Module):
                 deputy_output += weighted_output
         
         # Blend main và deputy outputs
-        blend_weight = self.blend_gate(feature)  # [batch, seq_len, dim]
+        blend_weight = self.blend_gate(main_output)  # [batch, seq_len, dim]
         final_output = blend_weight * main_output + (1 - blend_weight) * deputy_output
         
         # Contribution loss - khuyến khích main và deputy đóng góp cân bằng
