@@ -68,7 +68,6 @@ def train_e2e_batch_moe(data_batch, model, optimizer, loss_method):
     scores = data_batch.score.unsqueeze(0).float()
     goldenVec = data_batch.goldenVec
     
-    # Lấy device từ feature
     device = feature.device
 
     pg = c_model(feature.cuda(), adj.cuda(), docnum, secnum)
@@ -165,9 +164,6 @@ def val_e2e_batch_moe(data_batch, model, loss_method):
         
         # Create negative mask (inverse of positive mask)
         neg_mask = 1 - pos_mask
-        # c_loss = infonce(goldenVec.cuda(), pg, mask.cuda(), neg_mask.cuda())
-
-        # Use triplet loss instead of InfoNCE
         if torch.any(pos_mask):
             pos_distances, neg_distances = pairwise_distances(goldenVec.cuda(), pg, pos_mask.cuda(), neg_mask.cuda())
             c_loss = loss_method(pos_distances, neg_distances)
