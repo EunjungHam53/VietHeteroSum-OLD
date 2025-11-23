@@ -96,8 +96,10 @@ class MoEGraphLayer(nn.Module):
         ])
         
         self.blend_gate = nn.Sequential(
+            nn.Linear(2 * in_dim, in_dim),
+            nn.LeakyReLU(),
             nn.Linear(in_dim, in_dim),
-            nn.Sigmoid()
+            nn.Sigmoid()  
         )
         
         self.contribution_loss_coef = contribution_loss_coef
@@ -132,7 +134,10 @@ class MoEGraphLayer(nn.Module):
                 weighted_output = expert_out * expert_mask
                 deputy_output += weighted_output
         
-        blend_weight = self.blend_gate(main_output)
+
+        concat_output = torch.cat([main_output, deputy_output], dim=-1)
+        blend_weight = self.blend_gate(concat_output)
+        
         final_output = blend_weight * main_output + (1 - blend_weight) * deputy_output
         
         main_contribution = blend_weight.mean()
@@ -143,7 +148,6 @@ class MoEGraphLayer(nn.Module):
     def get_expert_stats(self, routing_mask):
         expert_usage = routing_mask.mean(dim=[0, 1])
         return expert_usage
-
 
 class StepWiseGraphConvLayerMoE(nn.Module):
     def __init__(self, in_dim, out_dim, hid_dim, dropout_p=0.3, act=nn.LeakyReLU(), 
