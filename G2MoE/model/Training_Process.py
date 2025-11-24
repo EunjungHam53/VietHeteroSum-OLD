@@ -148,7 +148,6 @@ def val_e2e_batch_moe(data_batch, model, loss_method):
     scores = data_batch.score.unsqueeze(0).float()
     goldenVec = data_batch.goldenVec
     
-    # Lấy device từ feature
     device = feature.device
 
     with torch.no_grad():
