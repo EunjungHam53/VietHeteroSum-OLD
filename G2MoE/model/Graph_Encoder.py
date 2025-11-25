@@ -28,8 +28,6 @@ class MLP(nn.Module):
             x = self.act(self.mlp_layers[-1](x))
         return x
 
-
-# borrowed from labml.ai
 class GraphAttentionLayer(nn.Module):
     def __init__(self, in_features: int, out_features: int, n_heads: int,
                  is_concat: bool = True,
@@ -163,13 +161,11 @@ class Contrast_Encoder(nn.Module):
 class End2End_Encoder(nn.Module):
     def __init__(self, in_dim, hidden_dim, dropout_p):
         super(End2End_Encoder, self).__init__()
-        # self.graph_encoder = graph_encoder
         self.dropout = nn.Dropout(dropout_p)
         self.out_proj_layer_mlp = MLP(in_dim, in_dim, hidden_dim, act=nn.LeakyReLU(), dropout_p=dropout_p, layers=2)
         self.final_layer = nn.Linear(in_dim, 1)
 
     def forward(self, x, adj, docnum, secnum):
-        # x = self.graph_encoder(x.float(), adj.float(), docnum, secnum)
         x = x[:, :-docnum-secnum-1, :]
         x = self.out_proj_layer_mlp(x)
         x = self.final_layer(x)

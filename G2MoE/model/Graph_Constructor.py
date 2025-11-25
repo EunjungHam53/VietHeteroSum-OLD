@@ -22,7 +22,6 @@ def mask_to_adj(doc_sect_mask, sect_sent_mask):
     adj = np.zeros((total_nodes, total_nodes))
     
     # Connect sections to sentences
-    # sent: [0:sent_num], sect: [sent_num:sent_num+sect_num], doc: [sent_num+sect_num:]
     adj[sent_num:sent_num+sect_num, 0:sent_num] = sect_sent_mask
     adj[0:sent_num, sent_num:sent_num+sect_num] = sect_sent_mask.T
     

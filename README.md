@@ -1,5 +1,4 @@
-# Granularity-Aware Mixture-of-Experts for Vietnamese Multi-Document Summarization
+# G2MoE: Granularity-Aware Graph Mixture-of-Experts for Vietnamese Multi-Document Summarization
 ___
-
-This repository contains the implementation of **ViGAMoE**, a heterogeneous graph-based model that integrates a novel Mixture-of-Experts mechanism with Graph Attention Networks (GAT) for Vietnamese text summarization. The model employs granularity-aware experts to capture structural information at sentence, section, and document levels, effectively balancing local coherence and global semantics within a unified graph attention framework.  
+This repository contains the implementation of **G2MoE**, a novel framework for Vietnamese multi-document summarization. G2MoE combines heterogeneous graph-based text modeling with a Mixture-of-Experts mechanism, where each expert is implemented using Graph Attention Networks. The model features a Holistic Expert for global context and Granularity-specific Experts for finer-grained semantic levels, enabling effective information synthesis from multiple documents in low-resource settings.
 ___
